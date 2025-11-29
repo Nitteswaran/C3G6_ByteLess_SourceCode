@@ -14,7 +14,6 @@ import {
   initializeDefaultData 
 } from '../utils/localStorage'
 import BlurText from '../components/BlurText'
-import TextPressure from '../components/TextPressure'
 
 const Home = () => {
   const [airPollutionData, setAirPollutionData] = useState([])
@@ -235,21 +234,9 @@ const Home = () => {
                 delay={50}
                 stepDuration={0.3}
               />
-              <div className="mb-4 leading-tight">
-                <TextPressure
-                  text="Smart, Safe, and Stress-Free Urban Travel"
-                  flex={true}
-                  alpha={false}
-                  stroke={false}
-                  width={true}
-                  weight={true}
-                  italic={true}
-                  textColor="#1f2937"
-                  strokeColor="#3b82f6"
-                  minFontSize={24}
-                  className="text-2xl md:text-3xl lg:text-4xl font-bold"
-                />
-              </div>
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4 leading-tight">
+                Smart, Safe, and Stress-Free Urban Travel
+              </h2>
               <p className="text-lg md:text-xl lg:text-2xl text-gray-600 mb-8 font-medium">
                 Your city. Your route. Your safety – all in one app
               </p>
