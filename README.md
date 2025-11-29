@@ -20,6 +20,7 @@ A full-stack application for real-time route tracking and management with live l
 - **Mapbox GL JS** - Advanced mapping with traffic data
 - **React-Map-GL** - React bindings for Mapbox
 - **Recharts** - Data visualization
+- **Google Map** - Map visualization
 
 ### Backend
 - **Node.js** - Runtime environment
