@@ -21,7 +21,7 @@ The production build will be in the `dist` directory.
 
 ### Vercel Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed Vercel deployment instructions.
+See [../DEPLOYMENT.md](../DEPLOYMENT.md) for detailed Vercel deployment instructions.
 
 **Quick Deploy:**
 1. Push code to GitHub

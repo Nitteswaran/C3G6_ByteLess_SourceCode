@@ -73,7 +73,7 @@ npm start
 
 ### Render Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed Render deployment instructions.
+See [../DEPLOYMENT.md](../DEPLOYMENT.md) for detailed Render deployment instructions.
 
 **Quick Deploy:**
 1. Set up MongoDB Atlas

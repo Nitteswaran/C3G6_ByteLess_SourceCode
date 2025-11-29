@@ -140,7 +140,7 @@ Backend API will be available at `http://localhost:5000`
 
 ### Frontend Deployment (Vercel)
 
-See [frontend/DEPLOYMENT.md](./frontend/DEPLOYMENT.md) for detailed instructions.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
 **Quick Steps:**
 1. Push code to GitHub/GitLab/Bitbucket
@@ -155,7 +155,7 @@ See [frontend/DEPLOYMENT.md](./frontend/DEPLOYMENT.md) for detailed instructions
 
 ### Backend Deployment (Render)
 
-See [backend/DEPLOYMENT.md](./backend/DEPLOYMENT.md) for detailed instructions.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
 
 **Quick Steps:**
 1. Set up MongoDB Atlas cluster
@@ -315,8 +315,7 @@ npm start        # Start production server
 
 ## 📚 Documentation
 
-- [Frontend Deployment Guide](./frontend/DEPLOYMENT.md)
-- [Backend Deployment Guide](./backend/DEPLOYMENT.md)
+- [Deployment Guide](./DEPLOYMENT.md)
 - [Backend API Documentation](./backend/README.md)
 
 ## 🤝 Contributing
