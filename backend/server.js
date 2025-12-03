@@ -19,53 +19,23 @@ const httpServer = createServer(app)
 // Initialize Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: env.FRONTEND_URL,
+    origin: '*', // Allow all origins temporarily for testing
     methods: ['GET', 'POST'],
-    credentials: true,
+    credentials: false, // Set to false when using origin: '*'
   },
 })
 
 // ==================== Middleware ====================
 
-// CORS configuration - Restrict to Vercel app in production, allow localhost in development
-const VERCEL_APP_URL = 'https://routely-eosin.vercel.app'
-
-const allowedOrigins = env.NODE_ENV === 'production' 
-  ? [VERCEL_APP_URL] // Only allow Vercel app in production
-  : [
-      VERCEL_APP_URL, // Also allow Vercel in development for testing
-      env.FRONTEND_URL,
-      'http://localhost:3000',
-      'http://localhost:5173',
-      'http://localhost:5174',
-    ]
-
+// CORS configuration - TEMPORARILY ALLOW ALL ORIGINS FOR TESTING
+// TODO: Restrict to specific origins in production
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (like mobile apps or curl requests) only in development
-      if (!origin) {
-        if (env.NODE_ENV === 'development') {
-          return callback(null, true)
-        }
-        return callback(new Error('Not allowed by CORS'))
-      }
-      
-      // Check if origin is in allowed list
-      if (allowedOrigins.includes(origin)) {
-        callback(null, true)
-      } else {
-        // In development, allow localhost on any port
-        if (env.NODE_ENV === 'development' && origin.startsWith('http://localhost:')) {
-          callback(null, true)
-        } else {
-          callback(new Error('Not allowed by CORS'))
-        }
-      }
-    },
-    credentials: true,
+    origin: '*', // Allow all origins temporarily for testing
+    credentials: false, // Set to false when using origin: '*'
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Length', 'Content-Type'],
   })
 )
 
