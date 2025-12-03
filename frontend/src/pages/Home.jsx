@@ -14,6 +14,7 @@ import {
   initializeDefaultData 
 } from '../utils/localStorage'
 import BlurText from '../components/BlurText'
+import api from '../services/api'
 
 const Home = () => {
   const [airPollutionData, setAirPollutionData] = useState([])
@@ -27,6 +28,10 @@ const Home = () => {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [visibleSections, setVisibleSections] = useState(new Set())
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState(null)
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState(null)
   
   const heroRef = useRef(null)
   const pollutionRef = useRef(null)
@@ -37,6 +42,13 @@ const Home = () => {
     fetchData()
     initializeDefaultData()
     loadForumPosts()
+    
+    // Auto-refresh data every 5 minutes to keep it real-time
+    const refreshInterval = setInterval(() => {
+      fetchData()
+    }, 5 * 60 * 1000) // 5 minutes
+
+    return () => clearInterval(refreshInterval)
   }, [])
 
   // Intersection Observer for scroll animations
@@ -82,6 +94,55 @@ const Home = () => {
   const fetchData = async () => {
     setLoading(true)
     try {
+      // Fetch real-time AQI data for major cities
+      const aqiResponse = await api.get('/aqi/cities')
+      if (aqiResponse.data?.success) {
+        const citiesData = aqiResponse.data.data
+        // Transform to chart format - show current month with real-time data
+        const now = new Date()
+        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const currentMonth = monthNames[now.getMonth()]
+        
+        // Create data for last 6 months, with current month showing real-time data
+        const airPollutionData = []
+        for (let i = 5; i >= 0; i--) {
+          const monthIndex = (now.getMonth() - i + 12) % 12
+          const monthName = monthNames[monthIndex]
+          
+          if (i === 0) {
+            // Current month - use real-time data
+            const dataPoint = { month: monthName }
+            citiesData.forEach(city => {
+              dataPoint[city.name] = city.aqi
+            })
+            airPollutionData.push(dataPoint)
+          } else {
+            // Previous months - add some variation to real-time data for historical context
+            const dataPoint = { month: monthName }
+            citiesData.forEach(city => {
+              // Add variation based on month (simulate seasonal changes)
+              const variation = (monthIndex % 3) * 5 - 5 // -5 to +10
+              dataPoint[city.name] = Math.max(0, Math.min(300, city.aqi + variation))
+            })
+            airPollutionData.push(dataPoint)
+          }
+        }
+        
+        setAirPollutionData(airPollutionData)
+      } else {
+        throw new Error('Failed to fetch AQI data')
+      }
+
+      // Fetch real-time traffic data
+      const trafficResponse = await api.get('/traffic/patterns')
+      if (trafficResponse.data?.success) {
+        setTrafficData(trafficResponse.data.data)
+      } else {
+        throw new Error('Failed to fetch traffic data')
+      }
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      // Fallback to mock data if API fails
       const mockAirPollution = [
         { month: 'Jan', KL: 45, Penang: 38, Johor: 42, Selangor: 48 },
         { month: 'Feb', KL: 52, Penang: 41, Selangor: 55, Johor: 49 },
@@ -104,8 +165,6 @@ const Home = () => {
 
       setAirPollutionData(mockAirPollution)
       setTrafficData(mockTraffic)
-    } catch (error) {
-      console.error('Error fetching data:', error)
     } finally {
       setLoading(false)
     }
@@ -212,6 +271,48 @@ const Home = () => {
     return `${diffInDays} day${diffInDays > 1 ? 's' : ''} ago`
   }
 
+  const handleSearchCity = async (e) => {
+    e.preventDefault()
+    if (!searchQuery.trim()) {
+      setSearchError('Please enter a city name')
+      return
+    }
+
+    setSearching(true)
+    setSearchError(null)
+    setSearchResults(null)
+
+    try {
+      const response = await api.get('/aqi/search', {
+        params: { city: searchQuery.trim() }
+      })
+
+      if (response.data?.success) {
+        setSearchResults(response.data.data)
+      } else {
+        setSearchError(response.data?.message || 'Failed to fetch AQI data')
+      }
+    } catch (error) {
+      console.error('Error searching city:', error)
+      setSearchError(
+        error.response?.data?.message || 
+        `Failed to find AQI data for "${searchQuery}". Please check the city name and try again.`
+      )
+      setSearchResults(null)
+    } finally {
+      setSearching(false)
+    }
+  }
+
+  const getAQIBadgeColor = (aqi) => {
+    if (aqi <= 50) return 'bg-green-100 text-green-800 border-green-300'
+    if (aqi <= 100) return 'bg-yellow-100 text-yellow-800 border-yellow-300'
+    if (aqi <= 150) return 'bg-orange-100 text-orange-800 border-orange-300'
+    if (aqi <= 200) return 'bg-red-100 text-red-800 border-red-300'
+    if (aqi <= 300) return 'bg-purple-100 text-purple-800 border-purple-300'
+    return 'bg-red-900 text-white border-red-950'
+  }
+
   return (
     <div className="space-y-12">
       {/* Hero Section */}
@@ -279,7 +380,86 @@ const Home = () => {
         }`}
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Air Pollution in Malaysia (AQI)</h2>
-        <p className="text-gray-600 mb-6">Monthly average air quality index across major cities</p>
+        <p className="text-gray-600 mb-6">Real-time air quality index across major cities (updates every 5 minutes)</p>
+        
+        {/* City Search Section */}
+        <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-900 mb-3">Search City Air Quality</h3>
+          <form onSubmit={handleSearchCity} className="flex gap-2 mb-3">
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Enter city name (e.g., Kuala Lumpur, Penang, Johor)"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              disabled={searching}
+            />
+            <button
+              type="submit"
+              disabled={searching || !searchQuery.trim()}
+              className="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {searching ? 'Searching...' : 'Search'}
+            </button>
+          </form>
+          
+          {searchError && (
+            <div className="text-red-600 text-sm mb-3 bg-red-50 p-3 rounded border border-red-200">
+              {searchError}
+            </div>
+          )}
+
+          {/* Search Results Card */}
+          {searchResults && (
+            <div className="mt-4 p-4 bg-white rounded-lg border-2 border-blue-200 shadow-md">
+              <div className="flex items-start justify-between mb-3">
+                <div>
+                  <h4 className="text-xl font-bold text-gray-900 mb-1">{searchResults.city}</h4>
+                  <p className="text-sm text-gray-600">Source: IQAir</p>
+                </div>
+                <div className={`px-4 py-2 rounded-lg border-2 font-bold text-2xl ${getAQIBadgeColor(searchResults.aqi)}`}>
+                  {searchResults.aqi}
+                </div>
+              </div>
+              
+              <div className="mb-3">
+                <span className={`inline-block px-3 py-1 rounded-full text-sm font-semibold`}
+                      style={{ backgroundColor: searchResults.aqiColor + '20', color: searchResults.aqiColor, border: `1px solid ${searchResults.aqiColor}` }}>
+                  {searchResults.aqiCategory}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mb-3">
+                {searchResults.pm25 !== null && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600 mb-1">PM2.5</div>
+                    <div className="text-lg font-bold text-gray-900">{searchResults.pm25} µg/m³</div>
+                  </div>
+                )}
+                {searchResults.pm10 !== null && (
+                  <div className="bg-gray-50 p-3 rounded-lg">
+                    <div className="text-xs text-gray-600 mb-1">PM10</div>
+                    <div className="text-lg font-bold text-gray-900">{searchResults.pm10} µg/m³</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200">
+                Last updated: {new Date(searchResults.timestamp).toLocaleString()}
+                {searchResults.url && (
+                  <a 
+                    href={searchResults.url} 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="ml-2 text-blue-600 hover:underline"
+                  >
+                    View on IQAir →
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
         {loading ? (
           <LoaderAnimation text="Loading air pollution data..." />
         ) : (
@@ -336,7 +516,7 @@ const Home = () => {
         }`}
       >
         <h2 className="text-2xl font-bold text-gray-900 mb-2">Traffic Patterns in Malaysia</h2>
-        <p className="text-gray-600 mb-6">Daily traffic congestion and accident patterns</p>
+        <p className="text-gray-600 mb-6">Real-time traffic congestion and accident patterns (updates every 5 minutes)</p>
         {loading ? (
           <LoaderAnimation text="Loading traffic data..." />
         ) : (

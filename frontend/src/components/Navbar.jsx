@@ -12,7 +12,6 @@ const Navbar = () => {
     { path: "/air-sos", label: "AirSOS" },
     { path: "/ai-advice", label: "AI Advice" },
     { path: "/guardian-connect", label: "Guardian" },
-    { path: "/settings", label: "Settings" },
   ];
 
   return (
@@ -59,10 +58,8 @@ const Navbar = () => {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200
-                  ${active
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  className={`nav-link px-4 py-2 rounded-lg text-sm font-medium text-gray-700 hover:text-gray-900 ${
+                    active ? "active" : ""
                   }`}
                 >
                   {item.label}
@@ -84,10 +81,8 @@ const Navbar = () => {
                   key={item.path}
                   to={item.path}
                   onClick={() => setMobileMenuOpen(false)}
-                  className={`block px-4 py-3 rounded-lg text-base font-medium transition-all duration-200
-                  ${active
-                    ? "bg-blue-600 text-white shadow-sm"
-                    : "text-gray-700 hover:bg-gray-100 hover:text-gray-900"
+                  className={`nav-link block px-4 py-3 rounded-lg text-base font-medium text-gray-700 hover:text-gray-900 ${
+                    active ? "active" : ""
                   }`}
                 >
                   {item.label}

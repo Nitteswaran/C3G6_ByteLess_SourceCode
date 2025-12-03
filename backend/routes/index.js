@@ -12,6 +12,7 @@ import forumRoutes from './forum.js'
 import surroundingsRoutes from './surroundings.js'
 import weatherRoutes from './weather.js'
 import aiRoutes from './ai.js'
+import trafficRoutes from './traffic.js'
 
 const router = express.Router()
 
@@ -31,6 +32,7 @@ router.use('/forum', forumRoutes)
 router.use('/surroundings', surroundingsRoutes)
 router.use('/weather', weatherRoutes)
 router.use('/ai', aiRoutes)
+router.use('/traffic', trafficRoutes)
 
 export default router
 

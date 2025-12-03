@@ -9,12 +9,13 @@ const AirSOS = () => {
   const [emergencyActive, setEmergencyActive] = useState(false)
   const [breathingMode, setBreathingMode] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState('Processing...')
   const [safeSpots, setSafeSpots] = useState([])
   const [trackingActive, setTrackingActive] = useState(false)
   const [userLocation, setUserLocation] = useState(null)
   const navigate = useNavigate()
 
-  // Get user location on mount
+  // Get user location on mount (optional, for initial display)
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
@@ -25,7 +26,13 @@ const AirSOS = () => {
           })
         },
         (error) => {
-          console.error('Error getting location:', error)
+          console.error('Error getting initial location:', error)
+          // Don't show error on mount, user can still use the feature
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 60000, // Accept location up to 1 minute old
         }
       )
     }
@@ -114,29 +121,97 @@ const AirSOS = () => {
 
   const handleNavigateToSafeSpot = async () => {
     setLoading(true)
+    setLoadingMessage('Getting your location...')
+    
+    // First, get the user's current location
+    const getCurrentLocation = () => {
+      return new Promise((resolve, reject) => {
+        if (!navigator.geolocation) {
+          reject(new Error('Geolocation is not supported by your browser'))
+          return
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            }
+            // Update state with fresh location
+            setUserLocation(location)
+            console.log('Current location obtained:', location)
+            resolve(location)
+          },
+          (error) => {
+            console.error('Error getting location:', error)
+            let errorMessage = 'Unable to get your location. '
+            if (error.code === error.PERMISSION_DENIED) {
+              errorMessage += 'Please enable location permissions in your browser settings.'
+            } else if (error.code === error.POSITION_UNAVAILABLE) {
+              errorMessage += 'Location information is unavailable.'
+            } else if (error.code === error.TIMEOUT) {
+              errorMessage += 'Location request timed out. Please try again.'
+            } else {
+              errorMessage += 'Please enable location services.'
+            }
+            reject(new Error(errorMessage))
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0, // Force fresh location
+          }
+        )
+      })
+    }
+
     try {
+      // Get fresh location first
+      const currentLocation = await getCurrentLocation()
+      
+      if (!currentLocation || !currentLocation.lat || !currentLocation.lng) {
+        alert('Location not available. Please enable location services and try again.')
+        setLoading(false)
+        return
+      }
+
+      setLoadingMessage('Finding nearby safe spots...')
+      console.log('Fetching safe spots for location:', currentLocation)
+
+      // Then fetch safe spots using the current location
       const response = await api.get('/safe-spots', {
-        params: userLocation ? {
-          lat: userLocation.lat,
-          lng: userLocation.lng,
-        } : {},
+        params: {
+          lat: currentLocation.lat,
+          lng: currentLocation.lng,
+          radius: 2, // 2km walking distance
+        },
       })
 
       if (response.data.success && response.data.data.length > 0) {
-        const nearestSpot = response.data.data[0]
-        // Open in maps app
-        const url = `https://www.google.com/maps/dir/?api=1&destination=${nearestSpot.lat},${nearestSpot.lng}`
-        window.open(url, '_blank')
+        console.log('Safe spots found:', response.data.data)
+        // Verify distances are calculated correctly
+        response.data.data.forEach((spot, index) => {
+          console.log(`Spot ${index + 1}: ${spot.name} - ${spot.distance}km away, ${spot.walkingTime} min walk`)
+        })
         setSafeSpots(response.data.data)
+        // Don't auto-open maps, let user see the list first
       } else {
-        alert('No safe spots found nearby')
+        alert('No safe spots found within walking distance (2km). Please try calling emergency services.')
+        setSafeSpots([])
       }
     } catch (error) {
       console.error('Error fetching safe spots:', error)
-      alert('Failed to find safe spots. Please try again.')
+      alert(error.message || 'Failed to find safe spots. Please try again.')
+      setSafeSpots([])
     } finally {
       setLoading(false)
+      setLoadingMessage('Processing...')
     }
+  }
+
+  const handleOpenInMaps = (spot) => {
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${spot.lat},${spot.lng}&travelmode=walking`
+    window.open(url, '_blank')
   }
 
   const handleStartTracking = async () => {
@@ -195,13 +270,13 @@ const AirSOS = () => {
 
             <button
               onClick={handleNavigateToSafeSpot}
-              disabled={loading}
+              disabled={loading || !userLocation}
               className="bg-white text-red-600 font-bold py-4 px-4 rounded-xl shadow-lg hover:bg-red-50 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
             >
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              <span>Safe Spot</span>
+              <span>Find Safe Spot</span>
             </button>
 
             <button
@@ -231,6 +306,39 @@ const AirSOS = () => {
               <span>{trackingActive ? 'Tracking Active' : 'Live Tracking'}</span>
             </button>
           </div>
+
+          {/* Safe Spots List in Emergency Mode */}
+          {safeSpots.length > 0 && (
+            <div className="mt-6 w-full max-w-2xl mx-auto px-4">
+              <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20">
+                <h3 className="text-white text-lg font-semibold mb-3">Nearby Safe Spots (Walking Distance)</h3>
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {safeSpots.slice(0, 3).map((spot) => (
+                    <div
+                      key={spot.id}
+                      className="bg-white/20 rounded-lg p-3 border border-white/30"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <h4 className="text-white font-medium text-sm mb-1">{spot.name}</h4>
+                          <div className="flex items-center gap-3 text-xs text-white/90">
+                            <span>📍 {spot.distance} km</span>
+                            {spot.walkingTime && <span>🚶 {spot.walkingTime} min</span>}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleOpenInMaps(spot)}
+                          className="ml-2 px-3 py-1 bg-white text-red-600 rounded-lg hover:bg-red-50 transition-colors text-xs font-medium"
+                        >
+                          Go
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Deactivate Button */}
           <button
@@ -324,11 +432,67 @@ const AirSOS = () => {
         </div>
       </div>
 
+      {/* Safe Spots List */}
+      {safeSpots.length > 0 && (
+        <div className="card">
+          <h3 className="text-xl font-semibold mb-4">Nearby Safe Spots (Walking Distance)</h3>
+          <div className="space-y-3">
+            {safeSpots.slice(0, 5).map((spot) => (
+              <div
+                key={spot.id}
+                className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-gray-900 mb-1">{spot.name}</h4>
+                    <p className="text-sm text-gray-600 mb-2">{spot.address}</p>
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-blue-600 font-medium">
+                        📍 {spot.distance} km away
+                      </span>
+                      {spot.walkingTime && (
+                        <span className="text-gray-600">
+                          🚶 {spot.walkingTime} min walk
+                        </span>
+                      )}
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        spot.category === 'police' ? 'bg-blue-100 text-blue-800' :
+                        spot.category === 'medical' ? 'bg-red-100 text-red-800' :
+                        spot.category === '24hour_store' ? 'bg-green-100 text-green-800' :
+                        'bg-yellow-100 text-yellow-800'
+                      }`}>
+                        {spot.category === 'police' ? 'Police' :
+                         spot.category === 'medical' ? 'Medical' :
+                         spot.category === '24hour_store' ? '24-Hour Store' :
+                         'Well-Lit Area'}
+                      </span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleOpenInMaps(spot)}
+                    className="ml-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+                  >
+                    Directions
+                  </button>
+                </div>
+                {spot.phone && (
+                  <div className="mt-2 text-sm text-gray-600">
+                    📞 <a href={`tel:${spot.phone}`} className="text-blue-600 hover:underline">
+                      {spot.phone}
+                    </a>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Loading Overlay */}
       {loading && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
           <div className="bg-white rounded-xl p-8">
-            <LoaderAnimation text="Processing..." />
+            <LoaderAnimation text={loadingMessage} />
           </div>
         </div>
       )}

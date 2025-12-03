@@ -36,6 +36,29 @@
   .input-field {
     @apply w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent;
   }
+
+  /* Navbar link styles with animated underline */
+  .nav-link {
+    text-decoration: none;
+    transition: 0.4s;
+    position: relative;
+  }
+
+  .nav-link::before {
+    content: "";
+    position: absolute;
+    width: 0;
+    height: 4px;
+    background-color: #2563eb; /* blue-600 */
+    bottom: 0;
+    left: 0;
+    transition: width 0.4s;
+  }
+
+  .nav-link:hover::before,
+  .nav-link.active::before {
+    width: 100%;
+  }
 }
 
 @layer utilities {

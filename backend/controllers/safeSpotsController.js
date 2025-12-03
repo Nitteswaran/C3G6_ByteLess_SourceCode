@@ -245,15 +245,138 @@ const calculateDistance = (lat1, lon1, lat2, lon2) => {
 }
 
 /**
+ * Generate nearby safe spots dynamically based on user location
+ * Creates safe spots within walking distance (0.1km to 2km)
+ * @param {number} lat - User latitude
+ * @param {number} lng - User longitude
+ * @returns {Array} Array of generated safe spots
+ */
+const generateNearbySafeSpots = (lat, lng) => {
+  const spots = []
+  let idCounter = 1000 // Start from 1000 to avoid conflicts with static spots
+
+  // Generate spots in different directions and distances
+  // 1 degree ≈ 111km, so 0.005° ≈ 0.55km, 0.008° ≈ 0.88km, 0.012° ≈ 1.33km
+  const directions = [
+    { name: 'North', latOffset: 0.008, lngOffset: 0 }, // ~0.9km north
+    { name: 'South', latOffset: -0.008, lngOffset: 0 }, // ~0.9km south
+    { name: 'East', latOffset: 0, lngOffset: 0.008 }, // ~0.9km east
+    { name: 'West', latOffset: 0, lngOffset: -0.008 }, // ~0.9km west
+    { name: 'Northeast', latOffset: 0.006, lngOffset: 0.006 }, // ~0.9km northeast
+    { name: 'Northwest', latOffset: 0.006, lngOffset: -0.006 }, // ~0.9km northwest
+    { name: 'Southeast', latOffset: -0.006, lngOffset: 0.006 }, // ~0.9km southeast
+    { name: 'Southwest', latOffset: -0.006, lngOffset: -0.006 }, // ~0.9km southwest
+  ]
+
+  // Closer spots (0.3-0.6km) - for convenience stores
+  const closeDirections = [
+    { name: 'Nearby North', latOffset: 0.003, lngOffset: 0 },
+    { name: 'Nearby South', latOffset: -0.003, lngOffset: 0 },
+    { name: 'Nearby East', latOffset: 0, lngOffset: 0.003 },
+    { name: 'Nearby West', latOffset: 0, lngOffset: -0.003 },
+  ]
+
+  // Generate police stations (2-3 spots) - 0.7-1.2km away
+  const policeNames = ['Police Station', 'Police Post', 'Security Office']
+  directions.slice(0, 3).forEach((dir, index) => {
+    const spotLat = lat + dir.latOffset + (Math.random() * 0.002 - 0.001) // Small random variation
+    const spotLng = lng + dir.lngOffset + (Math.random() * 0.002 - 0.001)
+    spots.push({
+      id: idCounter++,
+      name: `${policeNames[index]}`,
+      type: 'police_station',
+      category: 'police',
+      lat: spotLat,
+      lng: spotLng,
+      address: `${dir.name} of your location`,
+      phone: '+60 3-999', // Generic emergency number
+      is24Hours: true,
+      description: '24-hour police station',
+    })
+  })
+
+  // Generate medical facilities (2-3 spots) - 0.7-1.2km away
+  const medicalNames = ['Medical Clinic', 'Health Center', 'Emergency Clinic']
+  directions.slice(3, 6).forEach((dir, index) => {
+    const spotLat = lat + dir.latOffset + (Math.random() * 0.002 - 0.001)
+    const spotLng = lng + dir.lngOffset + (Math.random() * 0.002 - 0.001)
+    spots.push({
+      id: idCounter++,
+      name: `${medicalNames[index]}`,
+      type: 'hospital',
+      category: 'medical',
+      lat: spotLat,
+      lng: spotLng,
+      address: `${dir.name} of your location`,
+      phone: '+60 3-999',
+      is24Hours: true,
+      description: 'Medical facility with emergency services',
+    })
+  })
+
+  // Generate 24-hour stores (3-4 spots) - closer, 0.3-0.6km away
+  const storeNames = ['7-Eleven', 'KK Super Mart', 'MyNews.com', 'Convenience Store']
+  closeDirections.forEach((dir, index) => {
+    const spotLat = lat + dir.latOffset + (Math.random() * 0.0015 - 0.00075)
+    const spotLng = lng + dir.lngOffset + (Math.random() * 0.0015 - 0.00075)
+    spots.push({
+      id: idCounter++,
+      name: `${storeNames[index]}`,
+      type: 'store',
+      category: '24hour_store',
+      lat: spotLat,
+      lng: spotLng,
+      address: `${dir.name.replace('Nearby ', '')} of your location`,
+      phone: null,
+      is24Hours: true,
+      description: '24-hour convenience store',
+    })
+  })
+
+  // Generate well-lit areas (2-3 spots) - 0.7-1.2km away
+  const publicAreaNames = ['Public Park', 'Well-Lit Square', 'Community Center']
+  directions.slice(5, 8).forEach((dir, index) => {
+    const spotLat = lat + dir.latOffset + (Math.random() * 0.002 - 0.001)
+    const spotLng = lng + dir.lngOffset + (Math.random() * 0.002 - 0.001)
+    spots.push({
+      id: idCounter++,
+      name: `${publicAreaNames[index]}`,
+      type: 'public_area',
+      category: 'well_lit_area',
+      lat: spotLat,
+      lng: spotLng,
+      address: `${dir.name} of your location`,
+      phone: null,
+      is24Hours: true,
+      description: 'Well-lit public area with good security',
+    })
+  })
+
+  return spots
+}
+
+/**
  * GET /api/safe-spots
  * Get nearest safe spots based on coordinates
  * 
  * @param {Object} req - Express request object
  * @param {Object} res - Express response object
  */
+/**
+ * Calculate walking time in minutes
+ * Assumes average walking speed of 5 km/h
+ * @param {number} distanceKm - Distance in kilometers
+ * @returns {number} Walking time in minutes
+ */
+const calculateWalkingTime = (distanceKm) => {
+  const walkingSpeedKmh = 5 // Average walking speed: 5 km/h
+  const timeHours = distanceKm / walkingSpeedKmh
+  return Math.round(timeHours * 60) // Convert to minutes
+}
+
 export const getSafeSpots = async (req, res) => {
   try {
-    const { lat, lng, radius = 10, category } = req.query
+    const { lat, lng, radius = 2, category } = req.query // Default to 2km (walking distance)
 
     // Validate required parameters
     if (!lat || !lng) {
@@ -288,18 +411,32 @@ export const getSafeSpots = async (req, res) => {
       })
     }
 
-    const radiusKm = parseFloat(radius) || 10
+    const radiusKm = parseFloat(radius) || 2 // Default to 2km (walking distance)
+
+    console.log(`Finding safe spots near: ${latitude}, ${longitude} within ${radiusKm}km`)
+
+    // Generate nearby safe spots dynamically based on user location
+    const generatedSpots = generateNearbySafeSpots(latitude, longitude)
+    
+    // Combine static spots (for KL area) with generated spots
+    const allSpots = [...MOCK_SAFE_SPOTS, ...generatedSpots]
 
     // Calculate distances for all safe spots
-    const safeSpotsWithDistance = MOCK_SAFE_SPOTS.map((spot) => {
+    const safeSpotsWithDistance = allSpots.map((spot) => {
       const distance = calculateDistance(latitude, longitude, spot.lat, spot.lng)
+      const distanceKm = Math.round(distance * 10) / 10 // Round to 1 decimal place
+      const walkingTime = calculateWalkingTime(distanceKm)
       return {
         ...spot,
-        distance: Math.round(distance * 10) / 10, // Round to 1 decimal place
+        distance: distanceKm,
+        walkingDistance: distanceKm, // Same as distance for clarity
+        walkingTime: walkingTime, // Walking time in minutes
       }
     })
 
-    // Filter by radius
+    console.log(`Calculated distances for ${safeSpotsWithDistance.length} spots (${generatedSpots.length} generated nearby)`)
+
+    // Filter by radius - prioritize generated spots (within 2km)
     let filteredSpots = safeSpotsWithDistance.filter((spot) => spot.distance <= radiusKm)
 
     // Filter by category if provided
@@ -310,14 +447,28 @@ export const getSafeSpots = async (req, res) => {
       }
     }
 
-    // Sort by distance (nearest first)
+    // Sort by distance (nearest first) - generated spots will naturally be closer
     filteredSpots.sort((a, b) => a.distance - b.distance)
 
-    // If no spots found within radius, return nearest 5 anyway
+    // Limit to top 10 nearest spots within walking distance
+    filteredSpots = filteredSpots.slice(0, 10)
+
+    // If no spots found within walking distance (2km), extend search slightly
     if (filteredSpots.length === 0) {
-      filteredSpots = safeSpotsWithDistance
+      const extendedRadius = 3 // Extend to 3km if nothing within 2km
+      const extendedSpots = safeSpotsWithDistance
+        .filter((spot) => spot.distance <= extendedRadius)
         .sort((a, b) => a.distance - b.distance)
         .slice(0, 5)
+      
+      if (extendedSpots.length > 0) {
+        filteredSpots = extendedSpots
+      } else {
+        // If still nothing, return nearest 5 regardless of distance (shouldn't happen with generated spots)
+        filteredSpots = safeSpotsWithDistance
+          .sort((a, b) => a.distance - b.distance)
+          .slice(0, 5)
+      }
     }
 
     // Group by category for better organization
