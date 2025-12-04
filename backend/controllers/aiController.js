@@ -21,17 +21,23 @@ export const chatWithAI = asyncHandler(async (req, res) => {
   // Users can override with GEMINI_MODEL in .env if needed
   const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash-lite'
   const GEMINI_API_VERSION = process.env.GEMINI_API_VERSION || 'v1beta'
-  const GEMINI_API_URL = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
   
   // Log the model being used for debugging
   console.log(`[Gemini API] Using model: ${GEMINI_MODEL}, API version: ${GEMINI_API_VERSION}`)
+  console.log(`[Gemini API] API Key configured: ${GEMINI_API_KEY ? 'Yes' : 'No'}`)
+  console.log(`[Gemini API] Environment: ${process.env.NODE_ENV || 'development'}`)
 
   if (!GEMINI_API_KEY) {
+    console.error('[Gemini API] ERROR: GEMINI_API_KEY environment variable is not set')
+    console.error('[Gemini API] Please set GEMINI_API_KEY in your Render environment variables')
     return res.status(500).json({
       success: false,
-      message: 'Gemini API key is not configured',
+      message: 'Gemini API key is not configured. Please set GEMINI_API_KEY in your backend environment variables (Render dashboard).',
+      error: 'GEMINI_API_KEY_MISSING',
     })
   }
+
+  const GEMINI_API_URL = `https://generativelanguage.googleapis.com/${GEMINI_API_VERSION}/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`
 
   try {
     // Create context for the AI about Routely's purpose
@@ -132,9 +138,31 @@ User question: ${query.trim()}`
       },
     })
   } catch (error) {
-    console.error('Error calling Gemini API:', error)
+    console.error('[Gemini API] Error calling Gemini API:', error)
+    console.error('[Gemini API] Error name:', error.name)
+    console.error('[Gemini API] Error message:', error.message)
+    console.error('[Gemini API] Error code:', error.code)
     
-    // Fallback to local intelligent response system
+    // Log specific error types
+    if (error.name === 'AbortError') {
+      console.error('[Gemini API] Request timed out after 55 seconds')
+    } else if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
+      console.error('[Gemini API] Network error - cannot reach Gemini API')
+    } else if (error.message.includes('fetch')) {
+      console.error('[Gemini API] Fetch error - possible network or CORS issue')
+    }
+    
+    // Only use fallback for network/timeout errors, not for API key errors
+    // If the error is about API key or authentication, don't fall back
+    if (error.message && (error.message.includes('API key') || error.message.includes('401') || error.message.includes('403'))) {
+      return res.status(500).json({
+        success: false,
+        message: error.message || 'Invalid Gemini API key. Please check your GEMINI_API_KEY in Render environment variables.',
+        error: 'GEMINI_API_ERROR',
+      })
+    }
+    
+    // Fallback to local intelligent response system only for network/timeout errors
     console.log('[Fallback] Using local response system due to Gemini API failure')
     const fallbackResponse = generateFallbackResponse(query.trim())
     
@@ -154,8 +182,8 @@ User question: ${query.trim()}`
     let message = 'Failed to get AI response. Please try again later.'
     
     if (error.code === 'ENOTFOUND' || error.code === 'ECONNREFUSED') {
-      message = 'Unable to connect to Gemini API. Please check your internet connection.'
-    } else if (error.message.includes('timeout')) {
+      message = 'Unable to connect to Gemini API. Please check your internet connection and API key configuration.'
+    } else if (error.message.includes('timeout') || error.name === 'AbortError') {
       message = 'Request to Gemini API timed out. Please try again.'
     } else if (error.message) {
       message = error.message

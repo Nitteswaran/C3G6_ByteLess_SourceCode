@@ -73,6 +73,11 @@ const AIAdvice = () => {
     setLoading(true)
 
     try {
+      // Log the API URL being used for debugging
+      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'Not set (using relative path)'
+      console.log('[AI Advice] API Base URL:', apiBaseUrl)
+      console.log('[AI Advice] Full API URL will be:', apiBaseUrl ? `${apiBaseUrl}/api/ai/chat` : '/api/ai/chat')
+      
       // Use longer timeout for AI requests (60 seconds)
       const response = await api.post('/ai/chat', {
         query: userMessage,
@@ -105,7 +110,16 @@ const AIAdvice = () => {
       } else if (error.response?.status === 404) {
         errorMessage = 'API endpoint not found. The /api/ai/chat route may not be registered. Please check the backend server configuration.'
       } else if (error.response?.status === 500) {
-        errorMessage = error.response?.data?.message || 'Server error occurred. Please check:\n\n• If the Gemini API key is configured in backend/.env\n• Backend server logs for more details'
+        const serverMessage = error.response?.data?.message || 'Server error occurred'
+        const errorType = error.response?.data?.error
+        
+        if (errorType === 'GEMINI_API_KEY_MISSING' || serverMessage.includes('GEMINI_API_KEY')) {
+          errorMessage = `🔴 Gemini API Key Not Configured\n\n${serverMessage}\n\nTo fix this:\n1. Go to Render Dashboard → Your Backend Service\n2. Go to Environment Variables\n3. Add: GEMINI_API_KEY = your_api_key_here\n4. Get your API key from: https://aistudio.google.com/apikey\n5. Redeploy the backend`
+        } else if (errorType === 'GEMINI_API_ERROR' || serverMessage.includes('API key')) {
+          errorMessage = `🔴 Gemini API Error\n\n${serverMessage}\n\nPlease check:\n• GEMINI_API_KEY is set correctly in Render\n• API key is valid and has proper permissions\n• Backend logs for more details`
+        } else {
+          errorMessage = `${serverMessage}\n\nPlease check:\n• If the Gemini API key is configured in Render environment variables\n• Backend server logs for more details`
+        }
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message
       } else if (error.message) {
