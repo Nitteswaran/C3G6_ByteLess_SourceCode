@@ -27,17 +27,32 @@ const io = new Server(httpServer, {
 
 // ==================== Middleware ====================
 
-// CORS configuration - TEMPORARILY ALLOW ALL ORIGINS FOR TESTING
-// TODO: Restrict to specific origins in production
+// CORS configuration
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://routely-eosin.vercel.app"
+];
+
 app.use(
   cors({
-    origin: '*', // Allow all origins temporarily for testing
-    credentials: false, // Set to false when using origin: '*'
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.indexOf(origin) === -1) {
+        const msg = 'The CORS policy for this site does not allow access from the specified origin.';
+        console.warn(`CORS blocked: ${origin}`);
+        return callback(new Error(msg), false);
+      }
+      return callback(null, true);
+    },
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-    exposedHeaders: ['Content-Length', 'Content-Type'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Content-Length', 'Content-Type']
   })
-)
+);
 
 // Body parser middleware
 app.use(express.json())
@@ -104,6 +119,12 @@ app.post('/gemini', async (req, res) => {
 
 // API routes
 app.use('/api', routes)
+
+// Log available routes
+console.log('\n=== Available API Routes ===');
+console.log('GET  /api/ai/status - Check AI service status');
+console.log('POST /api/ai/chat   - Chat with AI');
+console.log('AI service is ready and listening for requests\n');
 
 // Root endpoint
 app.get('/', (req, res) => {

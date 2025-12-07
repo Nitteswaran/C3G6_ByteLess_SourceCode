@@ -73,28 +73,42 @@ const AIAdvice = () => {
     setLoading(true)
 
     try {
-      // Log the API URL being used for debugging
-      const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'Not set (using relative path)'
-      console.log('[AI Advice] API Base URL:', apiBaseUrl)
-      console.log('[AI Advice] Full API URL will be:', apiBaseUrl ? `${apiBaseUrl}/api/ai/chat` : '/api/ai/chat')
+      // Use production API URL for AI chat
+      const API_URL = import.meta.env.VITE_API_BASE_URL 
+        ? `${import.meta.env.VITE_API_BASE_URL}/api/ai/chat`
+        : 'https://routely.onrender.com/api/ai/chat';
       
-      // Use longer timeout for AI requests (60 seconds)
-      const response = await api.post('/ai/chat', {
-        query: userMessage,
-      }, {
-        timeout: 60000, // 60 seconds for AI requests
-      })
-
-      if (response.data.success) {
+      console.log('[AI Advice] Using API URL:', API_URL);
+      
+      // Make direct fetch call with proper CORS headers
+      const response = await fetch(API_URL, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ query: userMessage }),
+        credentials: 'include',
+        signal: AbortSignal.timeout(60000) // 60 seconds timeout
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+      }
+      
+      const responseData = await response.json();
+      
+      if (responseData.success) {
         const aiMessage = {
           role: 'assistant',
-          content: response.data.data.response,
+          content: responseData.data.response,
           timestamp: new Date().toISOString(),
-          fallback: response.data.data.fallback || false,
-        }
-        setMessages((prev) => [...prev, aiMessage])
+          fallback: responseData.data.fallback || false,
+        };
+        setMessages((prev) => [...prev, aiMessage]);
       } else {
-        throw new Error(response.data.message || 'Failed to get AI response')
+        throw new Error(responseData.message || 'Failed to get AI response');
       }
     } catch (error) {
       console.error('Error getting AI response:', error)
