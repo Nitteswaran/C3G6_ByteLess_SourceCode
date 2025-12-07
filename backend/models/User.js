@@ -83,8 +83,7 @@ userSchema.methods.comparePassword = async function(candidatePassword) {
 }
 
 // Index for leaderboard queries
-userSchema.index({ points: -1 })
-userSchema.index({ email: 1 })
+userSchema.index({ points: -1 });
 
 const User = mongoose.model('User', userSchema)
 
