@@ -31,7 +31,8 @@ const io = new Server(httpServer, {
 const allowedOrigins = [
   "http://localhost:3000",
   "http://localhost:5173",
-  "https://routely-eosin.vercel.app"
+  "https://routely-eosin.vercel.app",
+  "https://routely-h15i38j3v-nitteswarans-projects.vercel.app"
 ];
 
 app.use(
@@ -119,6 +120,12 @@ app.post('/gemini', async (req, res) => {
 
 // API routes
 app.use('/api', routes)
+
+// Add convenience redirect from /api/ai to /api/ai/chat
+app.post('/api/ai', (req, res, next) => {
+  req.url = '/api/ai/chat';
+  next();
+}, routes);
 
 // Log available routes
 console.log('\n=== Available API Routes ===');
