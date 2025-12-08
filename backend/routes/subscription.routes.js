@@ -1,5 +1,5 @@
 import express from 'express';
-import { protect } from '../middleware/auth.middleware.js';
+import { protect } from '../middleware/auth.js';
 import { User, FREE_AI_LIMIT, PRO_AI_LIMIT } from '../models/User.js';
 
 const router = express.Router();
