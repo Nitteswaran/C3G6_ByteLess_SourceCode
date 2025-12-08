@@ -2,7 +2,7 @@ import express from 'express';
 import { User } from '../models/User.js';
 import { stripe, getStripePriceId, getWebhookSecret } from '../config/stripe.js';
 import { SUBSCRIPTION_STATUS } from '../models/User.js';
-import { protect } from '../middleware/auth.middleware.js';
+import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
