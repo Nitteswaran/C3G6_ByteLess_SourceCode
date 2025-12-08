@@ -1,4 +1,4 @@
-import User from '../models/User.js'
+import { User } from '../models/User.js'
 import Achievement from '../models/Achievement.js'
 import JournalEntry from '../models/Journal.js'
 import Incident from '../models/Incident.js'

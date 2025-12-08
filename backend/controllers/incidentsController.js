@@ -1,5 +1,5 @@
 import Incident from '../models/Incident.js'
-import User from '../models/User.js'
+import { User } from '../models/User.js'
 import asyncHandler from '../utils/asyncHandler.js'
 import { checkAndAwardAchievements } from '../utils/achievements.js'
 

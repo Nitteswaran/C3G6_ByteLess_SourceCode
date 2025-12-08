@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import User from '../models/User.js'
+import { User } from '../models/User.js'
 
 // Optional auth middleware - doesn't fail if no token
 export const optionalAuth = async (req, res, next) => {
