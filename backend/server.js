@@ -4,8 +4,12 @@ import { createServer } from 'http'
 import { Server } from 'socket.io'
 import { connectDB } from './config/database.js'
 import { env, validateEnv } from './config/env.js'
+import { User } from './models/User.js'
 import routes from './routes/index.js'
+import stripeRoutes from './routes/stripe.routes.js'
+import subscriptionRoutes from './routes/subscription.routes.js'
 import { errorHandler, notFound } from './middleware/errorHandler.js'
+import { checkAIUsage, checkSubscription } from './middleware/checkAIUsage.js'
 
 // Validate environment variables
 validateEnv()
@@ -69,8 +73,8 @@ if (env.NODE_ENV === 'development') {
 
 // ==================== Routes ====================
 
-// Gemini route (direct access)
-app.post('/gemini', async (req, res) => {
+// Gemini route (direct access) with subscription check
+app.post('/gemini', checkAIUsage, checkSubscription, async (req, res) => {
   try {
     const userPrompt = req.body.prompt
 
@@ -109,6 +113,17 @@ app.post('/gemini', async (req, res) => {
     }
 
     const data = await response.json()
+    
+    // Increment AI usage after successful response
+    try {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        await user.incrementAIUsage();
+      }
+    } catch (error) {
+      console.error('Error updating AI usage:', error);
+    }
+    
     res.json(data)
   } catch (error) {
     console.error('Error calling Gemini API:', error)
@@ -120,6 +135,10 @@ app.post('/gemini', async (req, res) => {
 
 // API routes
 app.use('/api', routes)
+
+// Stripe & Subscription routes
+app.use('/api/stripe', stripeRoutes)
+app.use('/api/subscription', subscriptionRoutes)
 
 // Add convenience redirect from /api/ai to /api/ai/chat
 app.post('/api/ai', (req, res, next) => {
