@@ -304,6 +304,44 @@ const Dashboard = () => {
         )}
       </div>
 
+      {/* Premium Plan Pricing */}
+      <div className="card">
+        <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-semibold flex items-center gap-2">
+              Go Pro
+              <span className="inline-flex items-center rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800">
+                RM25 / month
+              </span>
+            </h2>
+            <p className="text-gray-600 mt-1">
+              Unlock higher daily AI limits, priority processing and more powerful assistance.
+            </p>
+            <ul className="mt-3 text-sm text-gray-600 list-disc list-inside space-y-1">
+              <li>Free plan: 10 AI requests per day</li>
+              <li>Pro plan: up to 200 AI requests per day</li>
+              <li>Cancel anytime from your billing portal</li>
+            </ul>
+          </div>
+          <button
+            onClick={async () => {
+              try {
+                const res = await api.post('/stripe/create-checkout-session');
+                if (res.data?.url) {
+                  window.location.href = res.data.url;
+                }
+              } catch (error) {
+                console.error('Failed to start checkout:', error);
+                alert('Unable to start checkout. Please try again.');
+              }
+            }}
+            className="btn-primary w-full md:w-auto"
+          >
+            Upgrade to Pro
+          </button>
+        </div>
+      </div>
+
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <button
